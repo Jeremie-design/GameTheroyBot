@@ -66,3 +66,23 @@ def pavlov(rnd, bot_h, opp_h):
 
     return 1 - bot_last
 
+STRATEGIES = {
+
+    "Unconditional Cooperator (ALLC)": unconditional_cooperator,
+
+    "Unconditional Defector (ALLD)": unconditional_defector,
+
+    "Random": random_strategy,
+
+    "Tit-for-Tat (TFT)": tit_for_tat,
+
+    "Suspicious Tit-for-Tat (STFT)": suspicious_tit_for_tat,
+
+    "Generous Tit-for-Tat (GTFT)": generous_tit_for_tat,
+
+    "Tit-for-Two-Tats (TF2T)": tit_for_two_tats,
+
+    "Grim Trigger (GRIM)": grim_trigger,
+
+    "Pavlov / Win-Stay-Lose-Shift (WSLS)": pavlov,
+}
