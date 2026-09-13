@@ -1,29 +1,42 @@
 import numpy as np
 
-def unconditional_cooperator(rnd, bot_h, opp_h):
+
+# Always cooperate
+def always_cooperate(rnd, bot_h, opp_h):
     return 0
 
-def unconditional_defector(rnd, bot_h, opp_h):
+
+# Always defect
+def always_defect(rnd, bot_h, opp_h):
     return 1
 
+
+# Randomly cooperate or defect
 def random_strategy(rnd, bot_h, opp_h):
     return int(np.random.random() < 0.5)
 
 
-def tit_for_tat(rnd, bot_h, opp_h):
+# Copy the opponent's previous move
+def copy_opponent(tnd, bot_h, opp_h):
     if rnd == 1:
         return 0
+
     return opp_h[-1]
 
 
-def suspicious_tit_for_tat(rnd, bot_h, opp_h):
+# Start by defecting, then copy the opponent
+def suspicious_copy_opponent(rnd, bot_h, opp_h):
     if rnd == 1:
         return 1
+
     return opp_h[-1]
 
-def generous_tit_for_tat(rnd, bot_h, opp_h):
+
+# Usually copy the opponent, but sometimes forgive defection
+def forgiving_copy_opponent(rnd, bot_h, opp_h):
     if rnd == 1:
         return 0
+
     opponent_last_move = opp_h[-1]
 
     if opponent_last_move == 0:
@@ -31,10 +44,12 @@ def generous_tit_for_tat(rnd, bot_h, opp_h):
 
     if np.random.random() < 0.20:
         return 0
+
     return 1
 
-def tit_for_two_tats(rnd, bot_h, opp_h):
-   
+
+# Cooperate unless the opponent defected twice in a row
+def forgive_two_defections(rnd, bot_h, opp_h):
     if rnd <= 2:
         return 0
 
@@ -44,17 +59,17 @@ def tit_for_two_tats(rnd, bot_h, opp_h):
     return 0
 
 
-
-def grim_trigger(rnd, bot_h, opp_h):
-
+# Cooperate until the opponent defects once,
+# then defect forever
+def cooperate_until_betrayed(rnd, bot_h, opp_h):
     if 1 in opp_h:
         return 1
 
     return 0
 
 
-def pavlov(rnd, bot_h, opp_h):
-   
+# Stay with a successful move, switch after failure
+def win_stay_lose_shift(rnd, bot_h, opp_h):
     if rnd == 1:
         return 0
 
@@ -66,23 +81,28 @@ def pavlov(rnd, bot_h, opp_h):
 
     return 1 - bot_last
 
+
+# =========================================================
+# STRATEGIES
+# =========================================================
+
 STRATEGIES = {
 
-    "Unconditional Cooperator (ALLC)": unconditional_cooperator,
+    "Always Cooperate (ALLC)": always_cooperate,
 
-    "Unconditional Defector (ALLD)": unconditional_defector,
+    "Always Defect (ALLD)": always_defect,
 
     "Random": random_strategy,
 
-    "Tit-for-Tat (TFT)": tit_for_tat,
+    "Tit-for-Tat (TFT)": copy_opponent,
 
-    "Suspicious Tit-for-Tat (STFT)": suspicious_tit_for_tat,
+    "Suspicious Tit-for-Tat (STFT)": suspicious_copy_opponent,
 
-    "Generous Tit-for-Tat (GTFT)": generous_tit_for_tat,
+    "Generous Tit-for-Tat (GTFT)": forgiving_copy_opponent,
 
-    "Tit-for-Two-Tats (TF2T)": tit_for_two_tats,
+    "Tit-for-Two-Tats (TF2T)": forgive_two_defections,
 
-    "Grim Trigger (GRIM)": grim_trigger,
+    "Grim Trigger (GRIM)": cooperate_until_betrayed,
 
-    "Pavlov / Win-Stay-Lose-Shift (WSLS)": pavlov,
+    "Pavlov / Win-Stay-Lose-Shift (WSLS)": win_stay_lose_shift,
 }
