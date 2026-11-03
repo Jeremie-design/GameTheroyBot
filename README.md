@@ -63,8 +63,6 @@ As the simulation progresses, the oldest action is removed and the newest action
 
 ### 2. Network Structure
 
-The network contains three computational components:
-
 | Layer | Units | Activation |
 |-------|------:|------------|
 | Input | 19 | None |
@@ -95,6 +93,8 @@ The weight matrices have the following dimensions:
 
 - $W_1 \in \mathbb{R}^{19 \times 6}$
 - $W_2 \in \mathbb{R}^{7 \times 1}$
+
+Weights are initialized uniformly in $[-1, 1)$.
 
 The sigmoid output is converted into a binary action using `np.round()`:
 
@@ -164,8 +164,6 @@ where:
 
 ### 4. Learning Configuration
 
-The current implementation uses:
-
 | Parameter | Default Value |
 |-----------|--------------:|
 | Memory size | 9 actions per player |
@@ -184,8 +182,6 @@ The current implementation is an exploratory learning approach, not a demonstrat
 
 ## Payoff Matrix
 
-The simulation uses the following payoff matrix.
-
 The first action represents the neural-network agent, and the second represents its opponent.
 
 | Agent Action | Opponent Action | Agent Reward | Opponent Reward |
@@ -199,37 +195,35 @@ These payoffs define the incentives used throughout the simulation.
 
 ## Opponent Strategies
 
-The simulation compares the adaptive agent against nine hand-written strategies.
+The simulation compares the adaptive agent against nine hand-written strategies implemented in `Game Theory/Strategies.py`.
 
 | Strategy | Behavior |
 |----------|----------|
-| Always Cooperate | Cooperates every round. |
-| Always Defect | Defects every round. |
+| Always Cooperate (ALLC) | Cooperates every round. |
+| Always Defect (ALLD) | Defects every round. |
 | Random | Selects either action with equal probability. |
-| Tit-for-Tat | Starts by cooperating, then copies the opponent's previous action. |
-| Suspicious Tit-for-Tat | Starts by defecting, then copies the opponent's previous action. |
-| Generous Tit-for-Tat | Usually copies the opponent but has a 20% chance of forgiving a defection. |
-| Tit-for-Two-Tats | Defects when the opponent defects in two consecutive rounds. |
-| Nine-Move Trigger | Defects while a defection remains in the opponent's stored nine-action history. |
-| Action-Comparison Heuristic | Uses comparisons between the players' previous actions to determine its next move. |
+| Tit-for-Tat (TFT) | Starts by cooperating, then copies the agent's previous action. |
+| Suspicious Tit-for-Tat (STFT) | Starts by defecting, then copies the agent's previous action. |
+| Generous Tit-for-Tat (GTFT) | Usually copies the agent but has a 20% chance of forgiving a defection. |
+| Tit-for-Two-Tats (TF2T) | Defects only after the agent defects in two consecutive rounds. |
+| Nine-Move Trigger (GRIM-9) | Defects while a defection remains in the agent's stored nine-action history. |
+| Pavlov / Win-Stay-Lose-Shift (WSLS) | Repeats its previous move after a payoff of 3 or 5 and switches after a payoff of 0 or 1. |
 
 These strategies provide different behavioral patterns against which the neural-network agent can be evaluated.
 
-The Nine-Move Trigger is a limited-memory approximation, not a true permanent Grim Trigger strategy.
-
-The Action-Comparison Heuristic is the current implementation labeled Pavlov / Win-Stay-Lose-Shift in the source code. It is not a standard payoff-based WSLS implementation.
+The Nine-Move Trigger is a limited-memory approximation of a Grim Trigger strategy. It forgives once the agent's last defection leaves the nine-action window, so it is not a permanent trigger.
 
 ## Running the Simulation
 
 ### Requirements
 
-- Python 3
+- Python 3.9+
 - NumPy
 
-Install NumPy:
+Install the dependencies:
 
 ```bash
-python -m pip install numpy
+python -m pip install -r requirements.txt
 ```
 
 ### Execute
@@ -263,6 +257,24 @@ After each matchup, the simulation reports:
 
 The final comparison summarizes these metrics across the opponent strategies.
 
+### Sample Results
+
+Results from a single run with `SEED = 42`:
+
+| Opponent | Agent Avg | Opponent Avg | Agent Cooperation |
+|----------|----------:|-------------:|------------------:|
+| Always Cooperate (ALLC) | 5.0000 | 0.0000 | 0.00% |
+| Always Defect (ALLD) | 0.0004 | 4.9984 | 99.96% |
+| Random | 1.5190 | 3.9579 | 98.81% |
+| Tit-for-Tat (TFT) | 2.4995 | 2.4994 | 50.01% |
+| Suspicious Tit-for-Tat (STFT) | 2.4994 | 2.4994 | 50.01% |
+| Generous Tit-for-Tat (GTFT) | 2.7982 | 2.2972 | 49.93% |
+| Tit-for-Two-Tats (TF2T) | 3.3268 | 1.6686 | 33.43% |
+| Nine-Move Trigger (GRIM-9) | 0.7422 | 4.3534 | 90.93% |
+| Pavlov / Win-Stay-Lose-Shift (WSLS) | 0.0237 | 4.9698 | 99.42% |
+
+The agent exploits unconditional cooperation, but it also keeps cooperating against opponents that defect heavily. This is consistent with the learning rule described above, which trains the output toward the round's reward rather than toward the payoff of the alternative action.
+
 ## Project Structure
 
 ```text
@@ -272,11 +284,18 @@ GameTheroyBot/
 │   ├── Simulation_Runner.py
 │   └── Strategies.py
 │
+├── Nerual Network Test/
+│   ├── Game-Bot.py
+│   ├── MLBot.py
+│   └── NettworkClass.py
+│
+├── .gitattributes
+├── .gitignore
 ├── README.md
-└── .gitattributes
+└── requirements.txt
 ```
 
-The repository also contains earlier neural-network prototypes in `Nerual Network Test/`.
+The folder `Nerual Network Test/` contains earlier single-layer neural-network prototypes.
 
 These files are developmental experiments and are not imported by the main simulation.
 
@@ -290,7 +309,7 @@ The current implementation provides a foundation for studying reward-driven beha
 - **Reward-target learning:** The network is trained toward the previous round's normalized reward rather than directly optimizing a formal policy objective.
 - **Limited memory:** The agent only receives the previous nine actions from each player.
 - **Single-run evaluation:** The simulation currently uses one configured random seed rather than averaging results over multiple independent trials.
-- **Simplified opponent models:** Some hand-written strategies use limited-memory or custom rules rather than their complete classical definitions.
+- **Simplified opponent model:** The Nine-Move Trigger uses a limited memory window rather than a permanent trigger.
 - **No explicit future-reward model:** The network does not calculate the expected long-term value of alternative actions.
 
 ### Potential Improvements

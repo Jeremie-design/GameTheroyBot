@@ -1,15 +1,11 @@
-# Game 
 from LrBot import AdaptivePrisonerBot
 from Strategies import STRATEGIES
 
 
-# Settings
 ROUNDS = 40000
 LEARNING_RATE = 0.30
 SEED = 42
 
-# Standard Prisoner's Dilemma
-# 0 = Cooperate, 1 = Defect
 PAYOFFS = {
     (0, 0): (3, 3),
     (0, 1): (0, 5),
@@ -32,8 +28,8 @@ def run_simulation(opponent):
     for rnd in range(1, ROUNDS + 1):
         opponent_move = opponent(
             rnd,
-            bot.bot_history,
-            bot.opp_history
+            bot.opp_history,
+            bot.bot_history
         )
 
         bot_move = bot.act()
