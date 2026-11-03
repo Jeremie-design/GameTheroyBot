@@ -1,49 +1,235 @@
-# Adaptive Prisoner's Dilemma Learning Agent
+# Adaptive Neural Network for the Repeated Prisoner's Dilemma
 
-A small Python project exploring how a neural-network policy can adapt during repeated Prisoner's Dilemma games. The main agent uses a one-hidden-layer neural network and a reward-based policy-gradient update. It is an educational experiment, not a claim of state-of-the-art performance.
+A Python experiment exploring how a small neural network can adapt its behavior in repeated Prisoner's Dilemma games.
 
-## Project status
+The project combines neural-network architecture, reward-driven weight updates, and classical game-theoretic strategies to investigate how an agent's recent interaction history relates to its future decisions.
 
-- The main agent and a simple interactive game are implemented.
-- The agent uses stochastic action selection: its network output is interpreted as the probability of defecting.
-- The agent updates its policy after each round using the received reward relative to a running reward baseline.
-- The `Nerual Network Test` directory contains earlier single-layer neural-network experiments. They are kept as prototypes and are not used by the main game.
-- No benchmark results are claimed in this README. Performance should be evaluated over repeated games and multiple random seeds before drawing conclusions about which strategy is better.
+Rather than relying entirely on predefined behavioral rules, the agent uses a neural network to process previous actions and update its weights after receiving each round's payoff.
 
-## How the game works
+The project focuses on understanding learning dynamics and strategic behavior rather than claiming optimal performance.
 
-Actions are encoded as `0 = Cooperate` and `1 = Defect`. The agent's input consists of its own previous nine actions, the opponent's previous nine actions, and a bias input, for 19 input values total.
+## Project Overview
 
-The main network has:
+The Prisoner's Dilemma is a game-theoretic model in which two players independently choose between cooperating and defecting.
 
-- 19 input features
-- 6 sigmoid hidden units by default
-- 1 sigmoid output representing the probability of defection
+Each action affects both players' rewards:
 
-The agent samples an action from that probability instead of rounding the output. Sampling is important because the reward-based policy-gradient update needs to account for the action the policy selected.
+- **Cooperate (0):** Choose mutual cooperation or accept the possibility of exploitation.
+- **Defect (1):** Attempt to maximize individual payoff at the expense of cooperation.
 
-### Learning update
+In a repeated game, players can use previous interactions to inform future decisions.
 
-After a round, the agent updates its weights using a one-step REINFORCE-style policy-gradient update. The policy-gradient signal is based on the selected action and the difference between the round's reward and an exponentially updated reward baseline. L2 regularization is applied to the weights.
+This project investigates whether a neural-network-based agent can adjust its behavior based on patterns in its own actions, its opponent's actions, and the rewards it receives.
 
-This is a simple, noisy learning method. It does **not** guarantee that the agent will improve against every opponent, discover an optimal strategy, or maximize long-term reward. Its behavior should be assessed experimentally.
+## Agent Architecture
 
-## Payoff matrix
+The main agent is implemented in `Game Theory/LrBot.py`.
 
-The first action is the human player's action and the second is the agent's action. The values are `(human reward, agent reward)`.
+It uses a feed-forward neural network with one hidden layer.
 
-| Human action | Agent action | Human reward | Agent reward |
+### 1. Input Representation
+
+The agent maintains a sliding history of the previous nine actions from each player.
+
+The input vector contains:
+
+| Component | Size |
+|---|---:|
+| Agent's previous actions | 9 |
+| Opponent's previous actions | 9 |
+| Bias input | 1 |
+| **Total input features** | **19** |
+
+Actions are numerically encoded:
+
+- `0` = Cooperate
+- `1` = Defect
+
+The input vector is constructed as:
+
+\[
+x = [a_1,\ldots,a_9,o_1,\ldots,o_9,1]
+\]
+
+where:
+
+- \(a_i\) represents one of the agent's previous actions.
+- \(o_i\) represents one of the opponent's previous actions.
+- The final value is the bias input.
+
+At initialization, both histories are filled with zeros.
+
+As the simulation progresses, the oldest action is removed and the newest action is appended.
+
+### 2. Network Structure
+
+The network contains three computational components:
+
+| Layer | Units | Activation |
+|---|---:|---|
+| Input | 19 | None |
+| Hidden | 6 | Sigmoid |
+| Output | 1 | Sigmoid |
+
+The forward pass consists of two transformations.
+
+First, the hidden layer processes the input:
+
+\[
+h = \sigma(xW_1)
+\]
+
+A bias value is then appended to the hidden representation before calculating the output:
+
+\[
+y = \sigma([h,1]W_2)
+\]
+
+where:
+
+\[
+\sigma(z)=\frac{1}{1+e^{-z}}
+\]
+
+The weight matrices have the following dimensions:
+
+- \(W_1 \in \mathbb{R}^{19 \times 6}\)
+- \(W_2 \in \mathbb{R}^{7 \times 1}\)
+
+The sigmoid output is converted into a binary action using `np.round()`:
+
+- `0` = Cooperate
+- `1` = Defect
+
+The output is not sampled as a probability. It is deterministically rounded into an action.
+
+## Reward-Based Learning
+
+After each round, the agent receives a numerical payoff determined by the game's payoff matrix.
+
+The `learn()` method uses the normalized reward as a target for the neural network's output.
+
+### 1. Reward Normalization
+
+The agent's reward is divided by the maximum possible reward:
+
+\[
+r_{\text{normalized}} = \frac{r}{5}
+\]
+
+This scales the reward to a value between zero and one for the current payoff matrix.
+
+The normalized reward is used as the target value for the network output.
+
+### 2. Output Error
+
+The difference between the normalized reward and the network output determines the output-layer error:
+
+\[
+\delta_o =
+(r_{\text{normalized}}-y)y(1-y)
+\]
+
+The sigmoid derivative is:
+
+\[
+\sigma'(y)=y(1-y)
+\]
+
+### 3. Backpropagation
+
+The output-layer error is propagated backward through the hidden layer:
+
+\[
+\delta_h =
+(\delta_o W_{2,h}^{T})\odot h(1-h)
+\]
+
+Here, \(W_{2,h}\) refers to the hidden-unit weights in the output layer, excluding its bias weight.
+
+The network then updates both weight matrices using the learning rate and an L2 regularization term.
+
+\[
+W_2 \leftarrow W_2+
+\alpha(h_b^T\delta_o-\lambda W_2)
+\]
+
+\[
+W_1 \leftarrow W_1+
+\alpha(x^T\delta_h-\lambda W_1)
+\]
+
+where:
+
+- \(\alpha\) is the learning rate.
+- \(\lambda\) is the L2 regularization coefficient.
+- \(h_b\) is the hidden representation with its bias input.
+- \(\odot\) represents element-wise multiplication.
+
+### 4. Learning Configuration
+
+The current implementation uses:
+
+| Parameter | Default Value |
+|---|---:|
+| Memory size | 9 actions per player |
+| Hidden units | 6 |
+| Learning rate | 0.30 in the simulation |
+| L2 regularization | 0.001 |
+| Reward normalization | Maximum reward of 5 |
+
+The update is an online, reward-targeted, backpropagation-style learning rule.
+
+**Important distinction:** This is not a REINFORCE or policy-gradient implementation. The network does not sample an action from a probability distribution or calculate a gradient using the log-probability of a selected action.
+
+Instead, its output is trained toward the normalized reward from the completed round and then used to select the next binary action.
+
+The current implementation is an exploratory learning approach, not a demonstrated optimal decision-making algorithm.
+
+## Payoff Matrix
+
+The simulation uses the following payoff matrix.
+
+The first action represents the neural-network agent, and the second represents its opponent.
+
+Each cell contains `(agent payoff, opponent payoff)`.
+
+| Agent Action | Opponent Action | Agent Reward | Opponent Reward |
 |---|---|---:|---:|
 | Cooperate | Cooperate | 3 | 3 |
 | Cooperate | Defect | 0 | 5 |
 | Defect | Cooperate | 5 | 0 |
-| Defect | Defect | 0 | 0 |
+| Defect | Defect | 1 | 1 |
 
-These are the custom payoffs used by this project; they are not the only payoff matrix used in Prisoner's Dilemma examples.
+These payoffs define the incentives used throughout the simulation.
 
-## Requirements
+## Opponent Strategies
 
-- Python 3.9 or newer recommended
+The simulation compares the adaptive agent against nine hand-written strategies.
+
+| Strategy | Behavior |
+|---|---|
+| Always Cooperate | Cooperates every round. |
+| Always Defect | Defects every round. |
+| Random | Selects either action with equal probability. |
+| Tit-for-Tat | Starts by cooperating, then copies the opponent's previous action. |
+| Suspicious Tit-for-Tat | Starts by defecting, then copies the opponent's previous action. |
+| Generous Tit-for-Tat | Usually copies the opponent but has a 20% chance of forgiving a defection. |
+| Tit-for-Two-Tats | Defects when the opponent defects in two consecutive rounds. |
+| Nine-Move Trigger | Defects while a defection remains in the opponent's stored nine-action history. |
+| Action-Comparison Heuristic | Uses comparisons between the players' previous actions to determine its next move. |
+
+These strategies provide different behavioral patterns against which the neural-network agent can be evaluated.
+
+The Nine-Move Trigger is a limited-memory approximation, not a true permanent Grim Trigger strategy.
+
+The Action-Comparison Heuristic is the current implementation labeled Pavlov / Win-Stay-Lose-Shift in the source code. It is not a standard payoff-based WSLS implementation.
+
+## Running the Simulation
+
+### Requirements
+
+- Python 3
 - NumPy
 
 Install NumPy:
@@ -52,71 +238,81 @@ Install NumPy:
 python -m pip install numpy
 ```
 
-## Run the interactive game
+### Execute
 
-Because the main files are inside a directory containing a space, run:
+From the repository root:
 
 ```bash
 cd "Game Theory"
-python Game.py
+python Simulation_Runner.py
 ```
 
-Enter `C` to cooperate, `D` to defect, or `Q` to quit. The game displays each round's actions and rewards, plus the cumulative scores.
+The simulation runs 40,000 rounds against each opponent strategy.
 
-## Use the agent in another Python script
-
-Run your script from inside the `Game Theory` directory, or add that directory to your Python import path:
+The current configuration uses:
 
 ```python
-from LrBot import AdaptivePrisonerBot
-
-bot = AdaptivePrisonerBot(seed=42)
-action = bot.act()  # 0 = cooperate, 1 = defect
-
-# After the opponent's move and payoff are known, calculate the agent reward
-# from the payoff matrix before calling learn().
-opponent_action = 0
-payoffs = {(0, 0): (3, 3), (0, 1): (0, 5),
-           (1, 0): (5, 0), (1, 1): (0, 0)}
-agent_reward = payoffs[(opponent_action, action)][1]
-bot.learn(action, opponent_action, agent_reward)
+ROUNDS = 40000
+LEARNING_RATE = 0.30
+SEED = 42
 ```
 
-Call `learn()` once per completed round, passing the action actually returned by `act()`, the opponent's action, and the agent's reward for that round.
+### Output
 
-## Repository structure
+After each matchup, the simulation reports:
+
+- Agent's cumulative reward.
+- Opponent's cumulative reward.
+- Average reward per round for each player.
+- Agent's cooperation rate.
+- Agent's defection rate.
+
+The final comparison summarizes these metrics across the opponent strategies.
+
+## Project Structure
 
 ```text
-GameTheroyBot-main/
+GameTheroyBot/
 ├── Game Theory/
-│   ├── Game.py          # Interactive game loop
-│   ├── LrBot.py         # Main adaptive neural-network agent
-│   └── Strategies.py    # Simple opponent strategies for experiments
-├── Nerual Network Test/
-│   ├── Game-Bot.py      # Earlier single-layer training example
-│   ├── MLBot.py         # Earlier single-layer bot prototype
-│   └── NettworkClass.py # Earlier neural-network class experiment
-└── README.md
+│   ├── LrBot.py
+│   ├── Simulation_Runner.py
+│   └── Strategies.py
+│
+├── README.md
+└── .gitattributes
 ```
 
-## Run the tests
+The repository also contains earlier neural-network prototypes in `Nerual Network Test/`.
 
-From the repository root, run:
+These files are developmental experiments and are not imported by the main simulation.
 
-```bash
-python -m unittest discover -s tests -v
-```
+## Limitations and Future Work
 
-The tests check basic action validity, learning/history bookkeeping, invalid action handling, and reset behavior. They do not establish that the agent performs well against particular strategies.
+The current implementation provides a foundation for studying reward-driven behavior in repeated games, but several limitations remain.
 
-## Limitations and next steps
+### Current Limitations
 
-- The current agent uses a one-step reward signal; it does not explicitly plan over future rounds.
-- Policy-gradient updates can have high variance, and the running baseline is only a simple variance-reduction technique.
-- The current interactive game is intended for learning and experimentation, not rigorous tournament evaluation.
-- A useful next experiment would compare the agent against always-cooperate, always-defect, random, and Tit-for-Tat opponents over many games and random seeds, reporting average rewards and variability.
-- The files in `Nerual Network Test` are historical prototypes. The main game does not import them.
+- **Deterministic action selection:** The sigmoid output is rounded rather than sampled from a probability distribution.
+- **Reward-target learning:** The network is trained toward the previous round's normalized reward rather than directly optimizing a formal policy objective.
+- **Limited memory:** The agent only receives the previous nine actions from each player.
+- **Single-run evaluation:** The simulation currently uses one configured random seed rather than averaging results over multiple independent trials.
+- **Simplified opponent models:** Some hand-written strategies use limited-memory or custom rules rather than their complete classical definitions.
+- **No explicit future-reward model:** The network does not calculate the expected long-term value of alternative actions.
 
-## License
+### Potential Improvements
 
-No license is specified in this repository yet. Add a license file if you want to clearly state how others may reuse the code.
+1. Investigate stochastic action selection and compare it with the current deterministic approach.
+2. Implement a formally defined policy-gradient algorithm as a separate learning experiment.
+3. Evaluate the agent over multiple random seeds and report average performance and variability.
+4. Track cooperation rates and cumulative rewards throughout individual simulations.
+5. Implement persistent memory for strategies that require long-term behavioral tracking.
+6. Add automated tests for neural-network updates, action selection, and opponent strategies.
+7. Investigate alternative network architectures and input representations.
+
+No performance advantage over the comparison strategies is claimed. Further experimentation is required to determine how the agent behaves under different initializations and evaluation conditions.
+
+## Author
+
+Jeremie-design
+
+[GitHub Repository](https://github.com/Jeremie-design/GameTheroyBot)
